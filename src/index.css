@@ -1,0 +1,201 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Outfit:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Outfit", "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Identidade Cluis Representações — Azul Marinho Arquitetônico + Ardósia Costeira */
+  --color-cluis-obsidian: #071722;
+  --color-cluis-deep: #0B2231;
+  --color-cluis-navy: #16394E;
+  --color-cluis-blue: #285E7B;
+  --color-cluis-ice: #A8D1E7;
+  --color-cluis-ink: #1C2E3A;
+  --color-cluis-muted: #586B78;
+  --color-cluis-line: #D5DFE6;
+  --color-cluis-alabaster: #EDF3F7;
+  /* Laranja exclusivo para destaque do município clicado e rotas no mapa */
+  --color-map-highlight: #EA7317;
+}
+
+:root {
+  /* transitions.dev calibrated timing primitives */
+  --t-ease-expo: cubic-bezier(0.22, 1, 0.36, 1);
+  --t-ease-snappy: cubic-bezier(0.16, 1, 0.3, 1);
+  --t-duration-fast: 150ms;
+  --t-duration-base: 240ms;
+}
+
+@layer base {
+  html {
+    background-color: #E8F0F6;
+    color: #1C2E3A;
+    font-family: var(--font-sans);
+    scroll-padding-top: 76px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html.lenis,
+  html.lenis body {
+    height: auto;
+  }
+
+  body {
+    overflow-x: clip;
+    background-color: #E8F0F6;
+    color: #1C2E3A;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  ::selection {
+    background-color: #285E7B;
+    color: #FFFFFF;
+  }
+
+  :focus-visible {
+    outline: 2px solid #285E7B;
+    outline-offset: 2px;
+  }
+
+  button:not(:disabled),
+  a[href],
+  select,
+  summary {
+    cursor: pointer;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.cartographic-grid {
+  background-image:
+    linear-gradient(to right, rgba(168, 209, 231, 0.055) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(168, 209, 231, 0.055) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* ============================================================================
+   Site-Wide Smooth Tonal Surface Progression — Eliminates Flat White Jumps
+   ============================================================================ */
+.band-mist {
+  position: relative;
+  background-color: #EDF3F8;
+  background-image:
+    radial-gradient(ellipse 68% 45% at 88% 0%, rgba(40, 94, 123, 0.075), transparent 70%),
+    radial-gradient(ellipse 55% 42% at 10% 100%, rgba(168, 209, 231, 0.16), transparent 72%),
+    linear-gradient(180deg, #E8F0F6 0%, #F2F6FA 48%, #EBF2F7 100%);
+}
+
+.band-slate {
+  position: relative;
+  background-color: #E1EBF2;
+  background-image:
+    radial-gradient(ellipse 64% 48% at 14% 0%, rgba(40, 94, 123, 0.095), transparent 72%),
+    radial-gradient(ellipse 52% 40% at 92% 100%, rgba(13, 37, 52, 0.055), transparent 70%),
+    linear-gradient(180deg, #E5EFF6 0%, #DBE7F0 52%, #E2ECF3 100%);
+}
+
+.band-ice {
+  position: relative;
+  background-color: #E5EEF5;
+  background-image:
+    radial-gradient(ellipse 62% 46% at 82% 10%, rgba(40, 94, 123, 0.085), transparent 68%),
+    radial-gradient(ellipse 56% 44% at 12% 92%, rgba(168, 209, 231, 0.18), transparent 70%),
+    linear-gradient(180deg, #E2ECF3 0%, #ECF3F8 54%, #E4EEF5 100%);
+}
+
+.band-obsidian {
+  position: relative;
+  background-color: #071722;
+  background-image:
+    radial-gradient(ellipse 58% 46% at 86% 6%, rgba(40, 94, 123, 0.28), transparent 68%),
+    radial-gradient(ellipse 48% 42% at 10% 96%, rgba(22, 57, 78, 0.36), transparent 70%),
+    linear-gradient(180deg, #091B28 0%, #071722 50%, #0A1E2C 100%);
+}
+
+/* Soft horizontal transition sheen between sections */
+.band-mist::before,
+.band-slate::before,
+.band-ice::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(22, 57, 78, 0.14) 22%,
+    rgba(22, 57, 78, 0.18) 50%,
+    rgba(22, 57, 78, 0.14) 78%,
+    transparent 100%
+  );
+}
+
+/* Subtle pointer-following radial sheen */
+.spotlight-surface {
+  position: relative;
+}
+
+.spotlight-surface::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 260ms var(--t-ease-expo);
+  background: radial-gradient(
+    420px circle at var(--spot-x, 50%) var(--spot-y, 50%),
+    rgba(168, 209, 231, 0.12),
+    transparent 65%
+  );
+  z-index: 1;
+}
+
+.spotlight-surface-light::before {
+  background: radial-gradient(
+    360px circle at var(--spot-x, 50%) var(--spot-y, 50%),
+    rgba(40, 94, 123, 0.08),
+    transparent 65%
+  );
+}
+
+.spotlight-surface:hover::before {
+  opacity: 1;
+}
+
+@media (hover: none), (prefers-reduced-motion: reduce) {
+  .spotlight-surface::before {
+    display: none;
+  }
+}

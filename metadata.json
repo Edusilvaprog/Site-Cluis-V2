@@ -1,0 +1,6 @@
+{
+  "name": "Cluis Representações — B2B Baixada Santista e Vale do Ribeira",
+  "description": "Representação comercial B2B das marcas Roma Pincéis, Soprano e Carbografite para lojas e construtoras na Baixada Santista e Vale do Ribeira, com catálogo interativo e montador de cotação para WhatsApp.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
