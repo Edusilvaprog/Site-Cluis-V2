@@ -3,15 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { MotionConfig } from 'framer-motion';
 import { Toaster, toast } from 'sonner';
 import { type BrandId, type ProductLine } from './data/cluisData';
 import {
   addQuoteLineItem,
+  clearLegacySavedQuoteData,
   DEFAULT_QUOTE_DRAFT,
-  loadPersistedQuoteDraft,
-  savePersistedQuoteDraft,
   type B2BQuoteDraft,
 } from './utils/quoteLogic';
 import { TopBar } from './components/TopBar';
@@ -22,7 +21,10 @@ import { RegionMapSection } from './components/RegionMapSection';
 import { QuoteSection } from './components/QuoteSection';
 import { AboutSection } from './components/AboutSection';
 import { FaqAndContactSection } from './components/FaqAndContactSection';
-import { LineDetailModal } from './components/LineDetailModal';
+import {
+  LineDetailModal,
+  type LineModalViewMode,
+} from './components/LineDetailModal';
 import { CommercialChatWidget } from './components/CommercialChatWidget';
 import { ScrollProgressBar } from './components/MotionPrimitives';
 import { scrollToSectionId, useSmoothScroll } from './hooks/useSmoothScroll';
@@ -30,16 +32,16 @@ import { scrollToSectionId, useSmoothScroll } from './hooks/useSmoothScroll';
 export default function App() {
   useSmoothScroll();
 
-  const initialDraft = useMemo(() => loadPersistedQuoteDraft(), []);
-
   const [activeCarouselBrand, setActiveCarouselBrand] = useState<BrandId>('roma');
   const [inspectedLine, setInspectedLine] = useState<ProductLine | null>(null);
-  const [quoteDraft, setQuoteDraft] = useState<B2BQuoteDraft>(initialDraft);
+  const [inspectedMode, setInspectedMode] = useState<LineModalViewMode>('photo');
+  const [quoteDraft, setQuoteDraft] = useState<B2BQuoteDraft>(DEFAULT_QUOTE_DRAFT);
   const [mapsQuotaExceeded, setMapsQuotaExceeded] = useState(false);
 
+  // Ensure no legacy company data remains stored in the browser
   useEffect(() => {
-    savePersistedQuoteDraft(quoteDraft);
-  }, [quoteDraft]);
+    clearLegacySavedQuoteData();
+  }, []);
 
   useEffect(() => {
     const handleQuotaExceeded = () => setMapsQuotaExceeded(true);
@@ -126,34 +128,38 @@ export default function App() {
 
         <TopBar />
 
-      <main id="conteudo-principal">
-        <HeroSection />
+        <main id="conteudo-principal">
+          <HeroSection />
 
-        <ProductCarouselSection
-          activeBrand={activeCarouselBrand}
-          onSelectBrand={setActiveCarouselBrand}
-          onInspectLine={(line) => setInspectedLine(line)}
-        />
+          <ProductCarouselSection
+            activeBrand={activeCarouselBrand}
+            onSelectBrand={setActiveCarouselBrand}
+            onInspectLine={(line, mode = 'photo') => {
+              setInspectedMode(mode);
+              setInspectedLine(line);
+            }}
+          />
 
-        <BrandsSection
-          onExploreBrandInCarousel={handleExploreBrandInCarousel}
-        />
+          <BrandsSection
+            onExploreBrandInCarousel={handleExploreBrandInCarousel}
+          />
 
-        <RegionMapSection />
+          <RegionMapSection />
 
-        <QuoteSection
-          draft={quoteDraft}
-          onDraftChange={handleUpdateDraft}
-          onResetDraft={handleResetDraft}
-        />
+          <QuoteSection
+            draft={quoteDraft}
+            onDraftChange={handleUpdateDraft}
+            onResetDraft={handleResetDraft}
+          />
 
-        <AboutSection />
+          <AboutSection />
 
-        <FaqAndContactSection />
-      </main>
+          <FaqAndContactSection />
+        </main>
 
         <LineDetailModal
           line={inspectedLine}
+          initialViewMode={inspectedMode}
           onClose={() => setInspectedLine(null)}
           onRequestQuoteForLine={handleRequestQuoteForLine}
         />

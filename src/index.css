@@ -14,8 +14,8 @@
   --color-cluis-ice: #A8D1E7;
   --color-cluis-ink: #1C2E3A;
   --color-cluis-muted: #586B78;
-  --color-cluis-line: #D5DFE6;
-  --color-cluis-alabaster: #EDF3F7;
+  --color-cluis-line: #C3D3DF;
+  --color-cluis-alabaster: #E4EEF5;
   /* Laranja exclusivo para destaque do município clicado e rotas no mapa */
   --color-map-highlight: #EA7317;
 }
@@ -30,22 +30,17 @@
 
 @layer base {
   html {
-    background-color: #E8F0F6;
+    background-color: #DCE7F0;
     color: #1C2E3A;
     font-family: var(--font-sans);
-    scroll-padding-top: 76px;
+    scroll-padding-top: 78px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  html.lenis,
-  html.lenis body {
-    height: auto;
-  }
-
   body {
     overflow-x: clip;
-    background-color: #E8F0F6;
+    background-color: #DCE7F0;
     color: #1C2E3A;
   }
 
@@ -104,33 +99,33 @@
 }
 
 /* ============================================================================
-   Site-Wide Smooth Tonal Surface Progression — Eliminates Flat White Jumps
+   Site-Wide Architectural Tonal Bands — Clear Contrast Against Crisp White Blocks
    ============================================================================ */
 .band-mist {
   position: relative;
-  background-color: #EDF3F8;
+  background-color: #DFE9F2;
   background-image:
-    radial-gradient(ellipse 68% 45% at 88% 0%, rgba(40, 94, 123, 0.075), transparent 70%),
-    radial-gradient(ellipse 55% 42% at 10% 100%, rgba(168, 209, 231, 0.16), transparent 72%),
-    linear-gradient(180deg, #E8F0F6 0%, #F2F6FA 48%, #EBF2F7 100%);
+    radial-gradient(ellipse 68% 48% at 90% 4%, rgba(40, 94, 123, 0.12), transparent 68%),
+    radial-gradient(ellipse 58% 44% at 8% 96%, rgba(13, 37, 52, 0.07), transparent 72%),
+    linear-gradient(180deg, #DAE6F0 0%, #E4EDF5 50%, #DCE7F1 100%);
 }
 
 .band-slate {
   position: relative;
-  background-color: #E1EBF2;
+  background-color: #D2E0EC;
   background-image:
-    radial-gradient(ellipse 64% 48% at 14% 0%, rgba(40, 94, 123, 0.095), transparent 72%),
-    radial-gradient(ellipse 52% 40% at 92% 100%, rgba(13, 37, 52, 0.055), transparent 70%),
-    linear-gradient(180deg, #E5EFF6 0%, #DBE7F0 52%, #E2ECF3 100%);
+    radial-gradient(ellipse 64% 50% at 12% 4%, rgba(40, 94, 123, 0.14), transparent 70%),
+    radial-gradient(ellipse 56% 44% at 92% 96%, rgba(13, 37, 52, 0.09), transparent 70%),
+    linear-gradient(180deg, #D7E4EF 0%, #CCDCE9 52%, #D4E2EE 100%);
 }
 
 .band-ice {
   position: relative;
-  background-color: #E5EEF5;
+  background-color: #D7E5F0;
   background-image:
-    radial-gradient(ellipse 62% 46% at 82% 10%, rgba(40, 94, 123, 0.085), transparent 68%),
-    radial-gradient(ellipse 56% 44% at 12% 92%, rgba(168, 209, 231, 0.18), transparent 70%),
-    linear-gradient(180deg, #E2ECF3 0%, #ECF3F8 54%, #E4EEF5 100%);
+    radial-gradient(ellipse 62% 48% at 84% 10%, rgba(40, 94, 123, 0.13), transparent 68%),
+    radial-gradient(ellipse 54% 44% at 12% 90%, rgba(168, 209, 231, 0.28), transparent 70%),
+    linear-gradient(180deg, #D4E2EE 0%, #E0EBF4 54%, #D7E4EF 100%);
 }
 
 .band-obsidian {
@@ -155,47 +150,38 @@
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(22, 57, 78, 0.14) 22%,
-    rgba(22, 57, 78, 0.18) 50%,
-    rgba(22, 57, 78, 0.14) 78%,
+    rgba(13, 37, 52, 0.16) 20%,
+    rgba(40, 94, 123, 0.24) 50%,
+    rgba(13, 37, 52, 0.16) 80%,
     transparent 100%
   );
 }
 
-/* Subtle pointer-following radial sheen */
-.spotlight-surface {
-  position: relative;
+/* ============================================================================
+   Unified Elevated Interactive Block Surface (Distinct Separation + Hover Depth)
+   ============================================================================ */
+.cluis-block {
+  border: 1px solid rgba(13, 37, 52, 0.13);
+  background-color: #FFFFFF;
+  box-shadow:
+    0 12px 30px -6px rgba(11, 34, 49, 0.11),
+    0 2px 6px rgba(11, 34, 49, 0.05);
+  transition:
+    transform 220ms var(--t-ease-expo),
+    box-shadow 220ms var(--t-ease-expo),
+    border-color 180ms var(--t-ease-expo);
 }
 
-.spotlight-surface::before {
-  content: "";
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  transition: opacity 260ms var(--t-ease-expo);
-  background: radial-gradient(
-    420px circle at var(--spot-x, 50%) var(--spot-y, 50%),
-    rgba(168, 209, 231, 0.12),
-    transparent 65%
-  );
-  z-index: 1;
-}
-
-.spotlight-surface-light::before {
-  background: radial-gradient(
-    360px circle at var(--spot-x, 50%) var(--spot-y, 50%),
-    rgba(40, 94, 123, 0.08),
-    transparent 65%
-  );
-}
-
-.spotlight-surface:hover::before {
-  opacity: 1;
+.cluis-block-interactive:hover {
+  transform: translateY(-4px);
+  border-color: rgba(40, 94, 123, 0.42);
+  box-shadow:
+    0 22px 46px -10px rgba(11, 34, 49, 0.17),
+    0 6px 16px -4px rgba(40, 94, 123, 0.1);
 }
 
 @media (hover: none), (prefers-reduced-motion: reduce) {
-  .spotlight-surface::before {
-    display: none;
+  .cluis-block-interactive:hover {
+    transform: none;
   }
 }

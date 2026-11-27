@@ -20,20 +20,20 @@ const CLUIS_SYSTEM_INSTRUCTION = `Você é o Assistente Comercial da Cluis Repre
 Fatos oficiais da Cluis Representações:
 - Atendimento exclusivo B2B para empresas com CNPJ e Inscrição Estadual ativa (depósitos de materiais de construção, casas de tintas, ferragens, elétricas, serralherias e comércios do setor).
 - Faturamento e nota fiscal emitidos diretamente pelas indústrias representadas.
-- Representantes diretos: Carlos — (13) 99804-5406 (visitas e negociação comercial, mais de 15 anos na região) e Eduardo — (13) 99634-2118 (cotações, conferência de códigos e pós-pedido).
+- Representante comercial: Carlos — (13) 99804-5406 (visitas presenciais, negociação comercial, cotações e acompanhamento de pedidos, com mais de 15 anos na região).
 - E-mail: contato@cluisrepresentacoes.com.br | Instagram: @cluisrep.
 - 3 indústrias representadas e suas linhas:
   1. Roma Pincéis (Nova Roma do Sul, RS): Trinchas e Pincéis, Rolos de Pintura (lã, microfibra, antigota, espuma e textura), Desempenadeiras e Espátulas, Acessórios de Pintura (bandejas, garfos, extensores).
   2. Soprano (Farroupilha, RS): Fechaduras e Ferragens (mecânicas, digitais e inox para áreas litorâneas), Materiais Elétricos (disjuntores DIN, DR, DPS, quadros), Interruptores e Tomadas (linha Brava! Up e modulares), Componentes para Móveis (dobradiças com pistão/click, corrediças).
   3. Carbografite (Petrópolis, RJ): EPIs e Segurança com CA vigente, Solda e Acessórios (máscaras automáticas, kits de corte, maçaricos), Ferramentas Manuais (alicates, trenas, níveis, estiletes).
 - Área de atuação (32 municípios):
-  - Baixada Santista (9): Bertioga, Cubatão, Guarujá, Itanhaém, Mongaguá, Peruíbe, Praia Grande (base), Santos, São Vicente. Polos de maior demanda: Santos, Praia Grande, São Vicente e Guarujá.
+  - Baixada Santista (9): Bertioga, Cubatão, Guarujá, Itanhaém, Mongaguá, Peruíbe, Praia Grande, Santos, São Vicente.
   - Vale do Ribeira (23): Registro, Cajati, Jacupiranga, Iguape, Miracatu, Juquiá, Pariquera-Açu, Cananéia, Eldorado, Ilha Comprida, Pedro de Toledo, Sete Barras e demais municípios da região.
 
 Diretrizes de atendimento:
 - Responda sempre em português brasileiro claro, objetivo e profissional (respostas concisas de 2 a 5 frases, ou lista curta quando útil).
 - Utilize a ferramenta do Google Maps quando o cliente perguntar sobre localização, distâncias, rotas, rodovias ou estabelecimentos comerciais na Baixada Santista e no Vale do Ribeira.
-- Nunca invente preços, tabelas, prazos fixos de entrega ou endereços comerciais; para valores, pedido mínimo vigente e fechamento de orçamento, oriente o cliente a preencher a seção de Orçamento do site ou chamar Carlos/Eduardo no WhatsApp.`;
+- Nunca invente preços, tabelas, prazos fixos de entrega ou endereços comerciais; para valores, pedido mínimo vigente e fechamento de orçamento, oriente o cliente a preencher a seção de Orçamento do site ou chamar pelo WhatsApp comercial (13) 99804-5406.`;
 
 function getGeminiClient(): GoogleGenAI | null {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
@@ -63,6 +63,113 @@ async function startServer() {
   app.get('/api/maps/config', (_req, res) => {
     const apiKey = getMapsApiKey();
     res.json({ apiKey, configured: Boolean(apiKey) });
+  });
+
+  app.get('/api/cnpj/:cnpj', async (req, res) => {
+    const digits = String(req.params.cnpj || '').replace(/\D/g, '');
+    if (digits.length !== 14) {
+      res.status(400).json({ error: 'Informe um CNPJ válido com 14 dígitos.' });
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `https://brasilapi.com.br/api/cnpj/v1/${digits}`,
+        {
+          headers: { Accept: 'application/json', 'User-Agent': 'cluis-web/1.0' },
+          signal: AbortSignal.timeout(6500),
+        },
+      );
+
+      if (response.ok) {
+        const data = (await response.json()) as {
+          cnpj?: string;
+          razao_social?: string;
+          nome_fantasia?: string;
+          municipio?: string;
+          uf?: string;
+          cep?: string;
+          bairro?: string;
+          email?: string | null;
+          ddd_telefone_1?: string | null;
+          descricao_situacao_cadastral?: string;
+        };
+
+        res.json({
+          cnpj: data.cnpj || digits,
+          razaoSocial: (data.razao_social || '').trim(),
+          nomeFantasia: (data.nome_fantasia || '').trim(),
+          municipio: (data.municipio || '').trim(),
+          uf: (data.uf || '').trim(),
+          cep: String(data.cep || '').replace(/\D/g, ''),
+          bairro: (data.bairro || '').trim(),
+          email: (data.email || '').trim().toLowerCase(),
+          telefone: String(data.ddd_telefone_1 || '').replace(/\D/g, ''),
+          situacao: (data.descricao_situacao_cadastral || '').trim(),
+        });
+        return;
+      }
+
+      if (response.status === 404) {
+        res.status(404).json({ error: 'CNPJ não encontrado na Receita Federal.' });
+        return;
+      }
+
+      res.status(502).json({
+        error: 'Consulta de CNPJ temporariamente indisponível. Preencha os dados manualmente.',
+      });
+    } catch {
+      res.status(502).json({
+        error: 'Não foi possível consultar o CNPJ agora. Preencha os dados manualmente.',
+      });
+    }
+  });
+
+  app.get('/api/cep/:cep', async (req, res) => {
+    const digits = String(req.params.cep || '').replace(/\D/g, '');
+    if (digits.length !== 8) {
+      res.status(400).json({ error: 'Informe um CEP válido com 8 dígitos.' });
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `https://viacep.com.br/ws/${digits}/json/`,
+        {
+          headers: { Accept: 'application/json' },
+          signal: AbortSignal.timeout(5500),
+        },
+      );
+
+      if (response.ok) {
+        const data = (await response.json()) as {
+          erro?: boolean;
+          cep?: string;
+          logradouro?: string;
+          bairro?: string;
+          localidade?: string;
+          uf?: string;
+        };
+
+        if (data.erro) {
+          res.status(404).json({ error: 'CEP não encontrado.' });
+          return;
+        }
+
+        res.json({
+          cep: (data.cep || digits).trim(),
+          logradouro: (data.logradouro || '').trim(),
+          bairro: (data.bairro || '').trim(),
+          localidade: (data.localidade || '').trim(),
+          uf: (data.uf || '').trim(),
+        });
+        return;
+      }
+
+      res.status(502).json({ error: 'Não foi possível consultar o CEP agora.' });
+    } catch {
+      res.status(502).json({ error: 'Não foi possível consultar o CEP agora.' });
+    }
   });
 
   app.post('/api/chat', async (req, res) => {

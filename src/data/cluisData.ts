@@ -38,7 +38,7 @@ export interface ProductLine {
 }
 
 export interface Attendant {
-  id: 'carlos' | 'eduardo';
+  id: 'carlos';
   name: string;
   role: string;
   description: string;
@@ -70,28 +70,20 @@ export const COMPANY_CONTACT = {
   instagramUrl: 'https://www.instagram.com/cluisrep/',
   baseCity: 'Praia Grande, SP',
   googleMapsBase: 'https://maps.google.com/?q=Praia+Grande,+SP',
+  serviceHours: 'Seg a Sex, 8h às 18h',
 } as const;
 
-export const ATTENDANTS: Attendant[] = [
-  {
-    id: 'carlos',
-    name: 'Carlos',
-    role: 'Representante Comercial · Visitas e negociação',
-    description:
-      'Visitas presenciais nas lojas, apresentação de linhas e condições comerciais direto da fábrica.',
-    phoneDisplay: '(13) 99804-5406',
-    phoneRaw: '5513998045406',
-  },
-  {
-    id: 'eduardo',
-    name: 'Eduardo',
-    role: 'Atendimento Comercial · Orçamentos e pedidos',
-    description:
-      'Orçamentos pelo WhatsApp, conferência de códigos e acompanhamento de pedidos.',
-    phoneDisplay: '(13) 99634-2118',
-    phoneRaw: '5513996342118',
-  },
-];
+export const PRIMARY_CONTACT: Attendant = {
+  id: 'carlos',
+  name: 'Carlos',
+  role: 'Representação Comercial',
+  description:
+    'Orçamentos, visitas presenciais nas lojas e acompanhamento de pedidos direto com as fábricas.',
+  phoneDisplay: '(13) 99804-5406',
+  phoneRaw: '5513998045406',
+};
+
+export const ATTENDANTS: Attendant[] = [PRIMARY_CONTACT];
 
 export const PDF_CATALOGS: BrandCatalogLink[] = [
   {

@@ -12,15 +12,19 @@ import {
   useSpring,
 } from 'framer-motion';
 import {
+  ChevronRight,
   ExternalLink,
   Loader2,
   MapPin,
-  MessageSquare,
+  MessageCircleQuestion,
+  Navigation,
+  PackageCheck,
   RotateCcw,
   Send,
+  ShieldCheck,
   X,
 } from 'lucide-react';
-import { ATTENDANTS } from '../data/cluisData';
+import { PRIMARY_CONTACT } from '../data/cluisData';
 import {
   type ChatMessageItem,
   type MapsSourceLink,
@@ -29,48 +33,57 @@ import { buildWhatsAppUrl } from '../utils/quoteLogic';
 import { WhatsAppBubbleSvg } from './CluisIcons';
 import { FLUID_EASE, FLUID_SPRING, TACTILE_SPRING } from './MotionPrimitives';
 
-type ActiveDockPanel = 'none' | 'whatsapp' | 'chat';
-
 const INITIAL_ASSISTANT_MESSAGE: ChatMessageItem = {
   id: 'welcome',
   role: 'model',
-  text: 'Olá! Posso ajudar com dúvidas sobre produtos da Roma Pincéis, Soprano e Carbografite, compras direto da fábrica ou cidades que atendemos na Baixada Santista e no Vale do Ribeira.',
+  text: 'Olá! Posso ajudar com dúvidas sobre linhas da Roma Pincéis, Soprano e Carbografite, faturamento direto de fábrica ou cidades atendidas na Baixada Santista e no Vale do Ribeira.',
 };
 
 const QUICK_PROMPTS = [
-  'Quais linhas da Soprano resistem à maresia?',
-  'Qual a distância de Praia Grande até Registro?',
-  'Como funciona o pedido mínimo nas fábricas?',
+  {
+    text: 'Quais linhas da Soprano resistem à maresia?',
+    icon: ShieldCheck,
+  },
+  {
+    text: 'Qual a distância de Praia Grande até Registro?',
+    icon: Navigation,
+  },
+  {
+    text: 'Como funciona o pedido mínimo nas fábricas?',
+    icon: PackageCheck,
+  },
 ];
 
 const MAGNETIC_SPRING = { stiffness: 360, damping: 24, mass: 0.45 };
 
-interface MagneticDockButtonProps {
+interface MagneticDockControlProps {
   icon: ReactNode;
   label: string;
-  active: boolean;
+  active?: boolean;
   alwaysShowLabelOnTouch?: boolean;
-  controlsId: string;
+  controlsId?: string;
   ariaLabel: string;
-  variant: 'secondary' | 'primary';
-  onClick: () => void;
+  variant: 'secondary' | 'whatsapp';
+  href?: string;
+  onClick?: () => void;
 }
 
-function MagneticDockButton({
+function MagneticDockControl({
   icon,
   label,
-  active,
+  active = false,
   alwaysShowLabelOnTouch = false,
   controlsId,
   ariaLabel,
   variant,
+  href,
   onClick,
-}: MagneticDockButtonProps) {
+}: MagneticDockControlProps) {
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
   const [isTouchPrimary, setIsTouchPrimary] = useState(false);
 
-  const btnRef = useRef<HTMLButtonElement | null>(null);
+  const elRef = useRef<HTMLElement | null>(null);
   const rawX = useMotionValue(0);
   const rawY = useMotionValue(0);
   const springX = useSpring(rawX, MAGNETIC_SPRING);
@@ -85,9 +98,9 @@ function MagneticDockButton({
     return () => finePointer.removeEventListener('change', sync);
   }, []);
 
-  const handleMouseMove = (e: ReactMouseEvent<HTMLButtonElement>) => {
+  const handleMouseMove = (e: ReactMouseEvent<HTMLElement>) => {
     if (isTouchPrimary) return;
-    const rect = btnRef.current?.getBoundingClientRect();
+    const rect = elRef.current?.getBoundingClientRect();
     if (!rect) return;
     const relX = (e.clientX - (rect.left + rect.width / 2)) / (rect.width / 2);
     const relY = (e.clientY - (rect.top + rect.height / 2)) / (rect.height / 2);
@@ -108,16 +121,67 @@ function MagneticDockButton({
     (isTouchPrimary && alwaysShowLabelOnTouch);
 
   const toneClasses = active
-    ? 'bg-white text-[#0D2534] shadow-[0_6px_18px_rgba(0,0,0,0.2)]'
-    : variant === 'primary'
-      ? 'bg-[#285E7B] text-white hover:bg-[#327396]'
+    ? 'bg-white text-[#0D2534] shadow-[0_6px_18px_rgba(0,0,0,0.22)]'
+    : variant === 'whatsapp'
+      ? 'bg-[#285E7B] text-white shadow-[0_6px_18px_rgba(40,94,123,0.34)] hover:bg-[#327396]'
       : 'text-[#DCEBF4] hover:bg-white/12 hover:text-white';
+
+  const sharedClassName = `inline-flex h-11 min-w-[44px] items-center justify-center rounded-full px-3.5 text-xs font-bold whitespace-nowrap transition-colors duration-150 ${toneClasses}`;
+
+  const innerContent = (
+    <>
+      <span className="inline-flex shrink-0 items-center justify-center">
+        {icon}
+      </span>
+      <motion.span
+        initial={false}
+        animate={{
+          maxWidth: showLabel ? 140 : 0,
+          opacity: showLabel ? 1 : 0,
+          marginLeft: showLabel ? 8 : 0,
+        }}
+        transition={{ duration: 0.22, ease: FLUID_EASE }}
+        className="overflow-hidden whitespace-nowrap"
+      >
+        {label}
+      </motion.span>
+    </>
+  );
+
+  if (href) {
+    return (
+      <motion.a
+        ref={(node) => {
+          elRef.current = node;
+        }}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ x: springX, y: springY }}
+        whileHover={{ scale: 1.04 }}
+        whileTap={{ scale: 0.95 }}
+        transition={TACTILE_SPRING}
+        onMouseEnter={() => setHovered(true)}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        aria-label={ariaLabel}
+        className={sharedClassName}
+      >
+        {innerContent}
+      </motion.a>
+    );
+  }
 
   return (
     <motion.button
-      ref={btnRef}
+      ref={(node) => {
+        elRef.current = node;
+      }}
       type="button"
       style={{ x: springX, y: springY }}
+      whileHover={{ scale: 1.04 }}
       whileTap={{ scale: 0.95 }}
       transition={TACTILE_SPRING}
       onClick={onClick}
@@ -129,23 +193,9 @@ function MagneticDockButton({
       aria-expanded={active}
       aria-controls={controlsId}
       aria-label={ariaLabel}
-      className={`inline-flex h-10 min-w-[40px] items-center justify-center rounded-xl px-3 text-xs font-bold whitespace-nowrap transition-colors duration-150 ${toneClasses}`}
+      className={sharedClassName}
     >
-      <span className="inline-flex shrink-0 items-center justify-center">
-        {icon}
-      </span>
-      <motion.span
-        initial={false}
-        animate={{
-          maxWidth: showLabel ? 128 : 0,
-          opacity: showLabel ? 1 : 0,
-          marginLeft: showLabel ? 8 : 0,
-        }}
-        transition={{ duration: 0.22, ease: FLUID_EASE }}
-        className="overflow-hidden whitespace-nowrap"
-      >
-        {label}
-      </motion.span>
+      {innerContent}
     </motion.button>
   );
 }
@@ -192,7 +242,7 @@ function renderFormattedReply(text: string) {
 }
 
 export function CommercialChatWidget() {
-  const [activePanel, setActivePanel] = useState<ActiveDockPanel>('none');
+  const [chatOpen, setChatOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessageItem[]>([
     INITIAL_ASSISTANT_MESSAGE,
   ]);
@@ -209,18 +259,20 @@ export function CommercialChatWidget() {
   const threadRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const chatOpen = activePanel === 'chat';
-  const whatsappOpen = activePanel === 'whatsapp';
+  const directWhatsAppUrl = buildWhatsAppUrl(
+    PRIMARY_CONTACT.phoneRaw,
+    'Olá! Gostaria de conversar sobre pedidos e produtos com a Cluis Representações.',
+  );
 
   useEffect(() => {
-    if (activePanel === 'none') return;
+    if (!chatOpen) return;
     const handleOutside = (e: MouseEvent) => {
       if (dockRef.current && !dockRef.current.contains(e.target as Node)) {
-        setActivePanel('none');
+        setChatOpen(false);
       }
     };
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setActivePanel('none');
+      if (e.key === 'Escape') setChatOpen(false);
     };
     document.addEventListener('mousedown', handleOutside);
     window.addEventListener('keydown', handleEsc);
@@ -228,13 +280,13 @@ export function CommercialChatWidget() {
       document.removeEventListener('mousedown', handleOutside);
       window.removeEventListener('keydown', handleEsc);
     };
-  }, [activePanel]);
+  }, [chatOpen]);
 
   useEffect(() => {
     if (!chatOpen) return;
     const el = threadRef.current;
     if (el) {
-      el.scrollTop = el.scrollHeight;
+      el.scrollTop = messages.length <= 1 ? 0 : el.scrollHeight;
     }
   }, [messages, sending, chatOpen]);
 
@@ -348,98 +400,40 @@ export function CommercialChatWidget() {
         <div
           ref={dockRef}
           data-testid="floating-contact-dock"
-          className="pointer-events-auto flex flex-col items-end gap-2.5"
+          className="pointer-events-auto flex flex-col items-end gap-3"
         >
-          {/* Mutually Exclusive Popups (WhatsApp Chooser OR Commercial Chat) */}
-          <AnimatePresence mode="wait">
-            {whatsappOpen && (
-              <motion.div
-                key="whatsapp-panel"
-                id="whatsapp-chooser-popup"
-                initial={{ opacity: 0, y: 12, scale: 0.94 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                transition={FLUID_SPRING}
-                style={{ transformOrigin: 'bottom right' }}
-                className="w-[280px] overflow-hidden rounded-2xl border border-[#C6D5E0] bg-white shadow-[0_24px_56px_rgba(7,23,34,0.34)]"
-              >
-                <div className="flex items-center justify-between border-b border-white/10 bg-[#0D2534] px-4 py-3 text-white">
-                  <div>
-                    <p className="font-display text-sm font-bold">WhatsApp direto</p>
-                    <p className="text-[11px] text-[#B8D9EA]">
-                      Escolha com quem prefere falar agora
-                    </p>
-                  </div>
-                  <motion.button
-                    type="button"
-                    whileHover={{ scale: 1.08 }}
-                    whileTap={{ scale: 0.92 }}
-                    transition={TACTILE_SPRING}
-                    onClick={() => setActivePanel('none')}
-                    aria-label="Fechar contatos do WhatsApp"
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-[#C2D4DF] transition-colors hover:bg-white/10 hover:text-white"
-                  >
-                    <X className="h-4 w-4" aria-hidden="true" />
-                  </motion.button>
-                </div>
-                <div className="divide-y divide-[#E7EEF3]">
-                  {ATTENDANTS.map((person, idx) => (
-                    <motion.a
-                      key={person.id}
-                      initial={{ opacity: 0, x: 6 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{
-                        duration: 0.2,
-                        delay: idx * 0.05,
-                        ease: FLUID_EASE,
-                      }}
-                      href={buildWhatsAppUrl(
-                        person.phoneRaw,
-                        `Olá ${person.name}! Gostaria de conversar sobre um orçamento com a Cluis Representações.`,
-                      )}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => setActivePanel('none')}
-                      className="group flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-[#F3F7FA]"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-[#0D2534]">{person.name}</p>
-                        <p className="truncate text-[11px] text-[#586B78]">
-                          {person.role}
-                        </p>
-                        <p className="mt-0.5 font-mono text-xs font-semibold text-[#285E7B] tabular-nums">
-                          {person.phoneDisplay}
-                        </p>
-                      </div>
-                      <WhatsAppBubbleSvg className="h-4 w-4 shrink-0 text-[#285E7B] transition-transform duration-150 group-hover:scale-110" />
-                    </motion.a>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-
+          {/* High-Contrast Site-Matched Tira-Dúvidas Drawer */}
+          <AnimatePresence>
             {chatOpen && (
               <motion.section
                 key="chat-panel"
                 id="cluis-commercial-chat"
                 data-testid="commercial-chat-drawer"
-                aria-label="Atendimento rápido Cluis"
-                initial={{ opacity: 0, y: 14, scale: 0.94 }}
+                aria-label="Tira-dúvidas Cluis"
+                initial={{ opacity: 0, y: 16, scale: 0.94 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                exit={{ opacity: 0, y: 12, scale: 0.95 }}
                 transition={FLUID_SPRING}
                 style={{ transformOrigin: 'bottom right' }}
-                className="flex h-[460px] max-h-[70vh] w-[calc(100vw-2rem)] max-w-[384px] flex-col overflow-hidden rounded-2xl border border-[#C6D5E0] bg-white shadow-[0_24px_60px_rgba(7,23,34,0.34)]"
+                className="flex h-[540px] max-h-[78vh] w-[calc(100vw-2rem)] max-w-[400px] flex-col overflow-hidden rounded-3xl border border-[#16394E]/25 bg-white shadow-[0_28px_70px_rgba(7,23,34,0.38)]"
               >
                 {/* Header */}
-                <div className="flex items-center justify-between gap-2 border-b border-white/10 bg-[#0D2534] px-4 py-3 text-white">
-                  <div>
-                    <h2 className="font-display text-sm font-bold tracking-tight">
-                      Tira-dúvidas Cluis
-                    </h2>
-                    <p className="text-[11px] text-[#B8D9EA]">
-                      Produtos, pedidos e cidades atendidas
-                    </p>
+                <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-[#0B2231] px-5 py-3.5 text-white">
+                  <div className="flex items-center gap-3">
+                    <span
+                      aria-hidden="true"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#285E7B] text-white shadow-[0_6px_14px_rgba(0,0,0,0.22)]"
+                    >
+                      <MessageCircleQuestion className="h-4.5 w-4.5" />
+                    </span>
+                    <div>
+                      <h2 className="font-display text-sm font-bold tracking-tight">
+                        Tira-dúvidas Cluis
+                      </h2>
+                      <p className="text-[11px] text-[#B8D9EA]">
+                        Produtos, pedidos e rotas na região
+                      </p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-1">
                     <button
@@ -447,26 +441,26 @@ export function CommercialChatWidget() {
                       onClick={handleReset}
                       title="Reiniciar conversa"
                       aria-label="Reiniciar conversa"
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#C2D4DF] transition-colors hover:bg-white/10 hover:text-white"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#C2D4DF] transition-colors hover:bg-white/12 hover:text-white"
                     >
                       <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
                     </button>
                     <button
                       type="button"
-                      onClick={() => setActivePanel('none')}
-                      aria-label="Fechar assistente comercial"
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#C2D4DF] transition-colors hover:bg-white/10 hover:text-white"
+                      onClick={() => setChatOpen(false)}
+                      aria-label="Fechar tira-dúvidas"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#C2D4DF] transition-colors hover:bg-white/12 hover:text-white"
                     >
                       <X className="h-4 w-4" aria-hidden="true" />
                     </button>
                   </div>
                 </div>
 
-                {/* Scrollable Multi-Turn Thread */}
+                {/* Coastal-Slate Thread Backdrop so White Elevated Blocks Stand Out Clearly */}
                 <div
                   ref={threadRef}
                   data-testid="chat-thread"
-                  className="flex-1 space-y-3 overflow-y-auto bg-[#F6F8FA] p-3.5"
+                  className="flex-1 space-y-3.5 overflow-y-auto bg-[#DAE6F0] p-4"
                 >
                   {messages.map((msg) => {
                     const isUser = msg.role === 'user';
@@ -476,10 +470,10 @@ export function CommercialChatWidget() {
                         className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
                       >
                         <div
-                          className={`max-w-[88%] rounded-xl px-3.5 py-2 text-[13px] leading-relaxed ${
+                          className={`max-w-[90%] rounded-2xl px-4 py-3 text-[13px] leading-relaxed ${
                             isUser
-                              ? 'whitespace-pre-wrap bg-[#16394E] text-white'
-                              : 'border border-[#DCE6EE] bg-white text-[#1C2E3A]'
+                              ? 'whitespace-pre-wrap bg-[#0D2534] text-white shadow-[0_8px_20px_rgba(11,34,49,0.22)]'
+                              : 'cluis-block text-[#1C2E3A]'
                           }`}
                         >
                           {isUser ? msg.text : renderFormattedReply(msg.text)}
@@ -488,7 +482,7 @@ export function CommercialChatWidget() {
                         {!isUser &&
                           msg.mapsSources &&
                           msg.mapsSources.length > 0 && (
-                            <div className="mt-1.5 w-full max-w-[88%] rounded-xl border border-[#DCE6EE] bg-white px-3 py-2">
+                            <div className="cluis-block mt-2 w-full max-w-[90%] rounded-2xl px-3.5 py-2.5">
                               <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-[#285E7B]">
                                 Referências no Google Maps
                               </p>
@@ -526,7 +520,7 @@ export function CommercialChatWidget() {
                   })}
 
                   {sending && (
-                    <div className="flex items-center gap-2 text-xs text-[#586B78]">
+                    <div className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-xs font-medium text-[#16394E] shadow-sm">
                       <Loader2
                         className="h-3.5 w-3.5 animate-spin text-[#285E7B]"
                         aria-hidden="true"
@@ -538,7 +532,7 @@ export function CommercialChatWidget() {
                   {errorMsg && (
                     <div
                       role="alert"
-                      className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-950"
+                      className="rounded-2xl border border-amber-300 bg-amber-50 px-3.5 py-2.5 text-xs font-medium text-amber-950 shadow-sm"
                     >
                       {errorMsg}
                     </div>
@@ -546,20 +540,35 @@ export function CommercialChatWidget() {
 
                   {messages.length === 1 && !sending && (
                     <div className="pt-1">
-                      <p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#586B78]">
+                      <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.06em] text-[#285E7B]">
                         Perguntas rápidas
                       </p>
-                      <div className="flex flex-col gap-1.5">
-                        {QUICK_PROMPTS.map((prompt) => (
-                          <button
-                            key={prompt}
-                            type="button"
-                            onClick={() => void sendMessage(prompt)}
-                            className="rounded-xl border border-[#D5DFE6] bg-white px-3 py-2 text-left text-xs font-medium text-[#0D2534] transition-colors hover:border-[#285E7B] hover:bg-[#EEF4F8]"
-                          >
-                            {prompt}
-                          </button>
-                        ))}
+                      <div className="flex flex-col gap-2">
+                        {QUICK_PROMPTS.map((item) => {
+                          const Icon = item.icon;
+                          return (
+                            <motion.button
+                              key={item.text}
+                              type="button"
+                              whileHover={{ scale: 1.015, y: -1 }}
+                              whileTap={{ scale: 0.98 }}
+                              transition={TACTILE_SPRING}
+                              onClick={() => void sendMessage(item.text)}
+                              className="cluis-block cluis-block-interactive group flex items-center justify-between gap-2.5 rounded-2xl px-3.5 py-2.5 text-left text-xs font-semibold text-[#0D2534]"
+                            >
+                              <span className="flex items-center gap-2.5">
+                                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-[#EAF3F8] text-[#285E7B] transition-colors group-hover:bg-[#0D2534] group-hover:text-white">
+                                  <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                                </span>
+                                <span className="leading-snug">{item.text}</span>
+                              </span>
+                              <ChevronRight
+                                className="h-3.5 w-3.5 shrink-0 text-[#6F8796] transition-transform group-hover:translate-x-0.5 group-hover:text-[#0D2534]"
+                                aria-hidden="true"
+                              />
+                            </motion.button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -568,17 +577,17 @@ export function CommercialChatWidget() {
                 {/* Composer */}
                 <form
                   onSubmit={handleSubmit}
-                  className="border-t border-[#DCE5EC] bg-white p-2.5"
+                  className="border-t border-[#C6D5E0] bg-white px-3.5 pt-2.5 pb-3.5"
                 >
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <button
                       type="button"
                       onClick={requestLocation}
                       disabled={locating}
-                      className={`inline-flex items-center gap-1.5 text-[11px] font-medium transition-colors ${
+                      className={`inline-flex items-center gap-1.5 text-[11px] font-semibold transition-colors ${
                         userLocation
                           ? 'text-[#EA7317]'
-                          : 'text-[#586B78] hover:text-[#0D2534]'
+                          : 'text-[#4C6270] hover:text-[#0D2534]'
                       }`}
                     >
                       <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
@@ -599,40 +608,43 @@ export function CommercialChatWidget() {
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
                       placeholder="Digite sua dúvida ou cidade..."
-                      aria-label="Mensagem para o assistente comercial"
+                      aria-label="Mensagem para o tira-dúvidas Cluis"
                       disabled={sending}
-                      className="min-h-[38px] flex-1 rounded-xl border border-[#C4D2DB] bg-white px-3 text-sm text-[#0D2534] placeholder:text-[#7D909E] focus:border-[#16394E] focus:outline-none disabled:opacity-60"
+                      className="min-h-[40px] flex-1 rounded-full border border-[#B8CAD6] bg-[#F4F8FB] px-4 text-sm text-[#0D2534] placeholder:text-[#667B88] transition-colors focus:border-[#16394E] focus:bg-white focus:outline-none disabled:opacity-60"
                     />
-                    <button
+                    <motion.button
                       type="submit"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.94 }}
+                      transition={TACTILE_SPRING}
                       disabled={sending || !input.trim()}
                       aria-label="Enviar mensagem"
-                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0D2534] text-white transition-colors hover:bg-[#285E7B] disabled:cursor-not-allowed disabled:opacity-45"
+                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0D2534] text-white shadow-[0_6px_16px_rgba(13,37,52,0.22)] transition-colors hover:bg-[#285E7B] disabled:cursor-not-allowed disabled:opacity-45"
                     >
                       <Send className="h-4 w-4" aria-hidden="true" />
-                    </button>
+                    </motion.button>
                   </div>
                 </form>
               </motion.section>
             )}
           </AnimatePresence>
 
-          {/* Grid-Aligned Magnetic Floating Dock with Smooth Expanding Labels */}
+          {/* Sleek Rounded-Full Magnetic Dock (React Bits Dock Inspired) */}
           <motion.div
             role="group"
             aria-label="Atalhos de contato Cluis"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.36, delay: 0.2, ease: FLUID_EASE }}
-            className="flex items-center gap-1.5 rounded-2xl border border-white/16 bg-[#071722]/94 p-1.5 shadow-[0_16px_38px_rgba(7,23,34,0.38)] backdrop-blur-md"
+            className="flex items-center gap-1.5 rounded-full border border-white/18 bg-[#071722]/94 p-1.5 shadow-[0_18px_42px_rgba(7,23,34,0.42)] backdrop-blur-md"
           >
-            <MagneticDockButton
+            <MagneticDockControl
               icon={
                 chatOpen ? (
-                  <X className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <X className="h-4.5 w-4.5 shrink-0" aria-hidden="true" />
                 ) : (
-                  <MessageSquare
-                    className="h-4 w-4 shrink-0 text-[#A8D1E7]"
+                  <MessageCircleQuestion
+                    className="h-4.5 w-4.5 shrink-0 text-[#A8D1E7]"
                     aria-hidden="true"
                   />
                 )
@@ -646,36 +658,18 @@ export function CommercialChatWidget() {
                   : 'Abrir tira-dúvidas Cluis'
               }
               variant="secondary"
-              onClick={() =>
-                setActivePanel((prev) => (prev === 'chat' ? 'none' : 'chat'))
-              }
+              onClick={() => setChatOpen((prev) => !prev)}
             />
 
-            <span aria-hidden="true" className="h-5 w-px bg-white/14" />
+            <span aria-hidden="true" className="h-5 w-px bg-white/16" />
 
-            <MagneticDockButton
-              icon={
-                whatsappOpen ? (
-                  <X className="h-4 w-4 shrink-0" aria-hidden="true" />
-                ) : (
-                  <WhatsAppBubbleSvg className="h-4 w-4 shrink-0" />
-                )
-              }
+            <MagneticDockControl
+              icon={<WhatsAppBubbleSvg className="h-4.5 w-4.5 shrink-0" />}
               label="WhatsApp"
-              active={whatsappOpen}
               alwaysShowLabelOnTouch
-              controlsId="whatsapp-chooser-popup"
-              ariaLabel={
-                whatsappOpen
-                  ? 'Fechar contatos do WhatsApp'
-                  : 'Abrir contatos do WhatsApp'
-              }
-              variant="primary"
-              onClick={() =>
-                setActivePanel((prev) =>
-                  prev === 'whatsapp' ? 'none' : 'whatsapp',
-                )
-              }
+              ariaLabel={`Abrir WhatsApp comercial ${PRIMARY_CONTACT.phoneDisplay}`}
+              variant="whatsapp"
+              href={directWhatsAppUrl}
             />
           </motion.div>
         </div>

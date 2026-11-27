@@ -1,56 +1,29 @@
 import { useEffect } from 'react';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import Lenis from 'lenis';
 
-gsap.registerPlugin(ScrollTrigger);
-
-let activeLenis: Lenis | null = null;
+const HEADER_OFFSET_PX = 76;
 
 export function scrollToSectionId(sectionId: string) {
   const target = document.getElementById(sectionId);
   if (!target) return;
 
-  if (activeLenis) {
-    activeLenis.scrollTo(target, {
-      offset: -76,
-      duration: 1.05,
-    });
-    return;
-  }
+  const prefersReduced =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  target.scrollIntoView({ behavior: 'smooth' });
+  const top =
+    target.getBoundingClientRect().top + window.scrollY - HEADER_OFFSET_PX;
+
+  window.scrollTo({
+    top: Math.max(0, top),
+    behavior: prefersReduced ? 'auto' : 'smooth',
+  });
 }
 
+/**
+ * Lightweight native anchor navigation (zero 60fps JS wheel-hijacking).
+ */
 export function useSmoothScroll() {
   useEffect(() => {
-    const prefersReducedMotion = window.matchMedia(
-      '(prefers-reduced-motion: reduce)',
-    ).matches;
-    const isFinePointer = window.matchMedia('(pointer: fine)').matches;
-
-    if (prefersReducedMotion || !isFinePointer) {
-      return;
-    }
-
-    const lenis = new Lenis({
-      duration: 1.05,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      smoothWheel: true,
-      touchMultiplier: 1.4,
-    });
-
-    activeLenis = lenis;
-
-    lenis.on('scroll', ScrollTrigger.update);
-
-    const onTick = (time: number) => {
-      lenis.raf(time * 1000);
-    };
-
-    gsap.ticker.add(onTick);
-    gsap.ticker.lagSmoothing(0);
-
     const handleAnchorClick = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
       const anchor = target?.closest<HTMLAnchorElement>('a[href^="#"]');
@@ -58,25 +31,13 @@ export function useSmoothScroll() {
       const href = anchor.getAttribute('href');
       if (!href || href === '#') return;
       const id = href.slice(1);
-      const section = document.getElementById(id);
-      if (!section) return;
+      if (!document.getElementById(id)) return;
 
       event.preventDefault();
-      lenis.scrollTo(section, {
-        offset: -76,
-        duration: 1.05,
-      });
+      scrollToSectionId(id);
     };
 
     document.addEventListener('click', handleAnchorClick);
-
-    return () => {
-      document.removeEventListener('click', handleAnchorClick);
-      gsap.ticker.remove(onTick);
-      lenis.destroy();
-      if (activeLenis === lenis) {
-        activeLenis = null;
-      }
-    };
+    return () => document.removeEventListener('click', handleAnchorClick);
   }, []);
 }

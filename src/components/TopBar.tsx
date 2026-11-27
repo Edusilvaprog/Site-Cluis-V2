@@ -32,17 +32,17 @@ export function TopBar() {
           : 'shadow-[0_1px_0_rgba(7,23,34,0.03)]'
       }`}
     >
-      <div className="mx-auto flex h-[74px] max-w-[1280px] items-center justify-between gap-8 px-4 sm:px-8 lg:px-10">
+      <div className="mx-auto flex h-[76px] max-w-[1280px] items-center justify-between gap-8 px-4 sm:px-8 lg:px-10">
         {/* Zone 1: Transparent Official Cluis Logo (Zero Background Box) */}
         <a
           href="#inicio"
           aria-label="Cluis Representações — Voltar ao início"
-          className="inline-flex shrink-0 items-center transition-transform duration-150 active:scale-[0.98] focus-visible:rounded"
+          className="inline-flex shrink-0 items-center justify-center transition-transform duration-150 active:scale-[0.98] focus-visible:rounded"
         >
           <img
             src={MEDIA_ASSETS.logoCluis}
             alt="Cluis Representações Comerciais"
-            className="h-11 w-auto object-contain sm:h-12"
+            className="h-12 w-auto object-contain sm:h-[54px]"
           />
         </a>
 
@@ -126,7 +126,7 @@ export function TopBar() {
                     className="flex min-h-[46px] items-center gap-2 text-sm font-semibold text-[#285E7B]"
                   >
                     <WhatsAppBubbleSvg className="h-4 w-4" />
-                    <span>Falar com Carlos ou Eduardo</span>
+                    <span>Atendimento comercial</span>
                   </a>
                 </li>
               </ul>

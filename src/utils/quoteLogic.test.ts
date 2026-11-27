@@ -5,19 +5,46 @@ import {
   buildB2BQuoteMessage,
   buildWhatsAppUrl,
   DEFAULT_QUOTE_DRAFT,
+  formatCepInput,
   formatCnpjInput,
+  formatCompanyDisplayName,
+  formatPhoneInput,
   getQuoteProgress,
   hasValidationErrors,
+  isValidEmail,
+  matchRegionalCity,
   removeQuoteLineItem,
   toggleArrayValue,
   validateQuoteRequest,
 } from './quoteLogic.ts';
 
-test('formatCnpjInput formats partial and complete CNPJ digits', () => {
+test('formatCnpjInput and formatPhoneInput format Brazilian masks cleanly', () => {
   assert.equal(formatCnpjInput('12'), '12');
   assert.equal(formatCnpjInput('12345'), '12.345');
   assert.equal(formatCnpjInput('12345678000195'), '12.345.678/0001-95');
   assert.equal(formatCnpjInput('12.345.678/0001-95999'), '12.345.678/0001-95');
+
+  assert.equal(formatPhoneInput('13998045406'), '(13) 99804-5406');
+  assert.equal(formatPhoneInput('1334721000'), '(13) 3472-1000');
+  assert.equal(isValidEmail('compras@loja.com.br'), true);
+  assert.equal(isValidEmail('invalido@'), false);
+});
+
+test('formatCepInput, matchRegionalCity and formatCompanyDisplayName normalize API data', () => {
+  assert.equal(formatCepInput('11700100'), '11700-100');
+  assert.equal(formatCepInput('11700'), '11700');
+  assert.equal(
+    matchRegionalCity('SAO VICENTE', ['Santos', 'São Vicente', 'Praia Grande']),
+    'São Vicente',
+  );
+  assert.equal(
+    matchRegionalCity('Campinas', ['Santos', 'São Vicente']),
+    'Outra cidade da região',
+  );
+  assert.equal(
+    formatCompanyDisplayName('', 'DEPOSITO PRAIA SUL LTDA'),
+    'Deposito Praia Sul LTDA',
+  );
 });
 
 test('toggleArrayValue adds and removes values immutably', () => {
@@ -27,100 +54,95 @@ test('toggleArrayValue adds and removes values immutably', () => {
   assert.deepEqual(b, ['soprano']);
 });
 
-test('addQuoteLineItem and removeQuoteLineItem manage structured quote items', () => {
-  const added = addQuoteLineItem([], 'Rolo antigota 23cm', '30 un');
+test('addQuoteLineItem and removeQuoteLineItem deduplicate items without quantity', () => {
+  const added = addQuoteLineItem([], 'Rolo antigota 23cm');
   assert.equal(added.length, 1);
   assert.equal(added[0].name, 'Rolo antigota 23cm');
-  assert.equal(added[0].quantity, '30 un');
 
-  const updated = addQuoteLineItem(added, 'rolo antigota 23cm', '50 un');
-  assert.equal(updated.length, 1);
-  assert.equal(updated[0].quantity, '50 un');
+  const duplicate = addQuoteLineItem(added, 'rolo antigota 23cm');
+  assert.equal(duplicate.length, 1);
 
-  const removed = removeQuoteLineItem(updated, updated[0].id);
+  const removed = removeQuoteLineItem(duplicate, duplicate[0].id);
   assert.equal(removed.length, 0);
 });
 
-test('validateQuoteRequest catches missing company, city, and empty quote scope', () => {
+test('validateQuoteRequest enforces CNPJ, company, city, WhatsApp, email, and scope', () => {
   const emptyErrors = validateQuoteRequest(DEFAULT_QUOTE_DRAFT);
   assert.equal(hasValidationErrors(emptyErrors), true);
+  assert.ok(emptyErrors.scope);
+  assert.ok(emptyErrors.cnpj);
   assert.ok(emptyErrors.companyName);
   assert.ok(emptyErrors.city);
-  assert.ok(emptyErrors.scope);
+  assert.ok(emptyErrors.whatsapp);
+  assert.ok(emptyErrors.email);
 
   const validDraft = {
     ...DEFAULT_QUOTE_DRAFT,
+    selectedBrands: ['soprano' as const],
+    cnpj: '52.400.807/0001-15',
     companyName: 'Casa das Ferragens Santos',
     city: 'Santos',
-    selectedBrands: ['soprano' as const],
+    whatsapp: '(13) 99804-5406',
+    email: 'compras@ferragenssantos.com.br',
   };
   assert.equal(hasValidationErrors(validateQuoteRequest(validDraft)), false);
-
-  const notesOnlyScopeDraft = {
-    ...DEFAULT_QUOTE_DRAFT,
-    companyName: 'Depósito Litoral',
-    city: 'Praia Grande',
-    itemsDescription: '30 rolos antigota 23cm',
-  };
-  assert.equal(hasValidationErrors(validateQuoteRequest(notesOnlyScopeDraft)), false);
 });
 
-test('getQuoteProgress computes live completion across 3 essential steps', () => {
+test('getQuoteProgress tracks all 5 mandatory milestones cleanly', () => {
   const initial = getQuoteProgress(DEFAULT_QUOTE_DRAFT);
   assert.equal(initial.percent, 0);
   assert.equal(initial.completedCount, 0);
-  assert.equal(initial.totalCount, 3);
+  assert.equal(initial.totalCount, 5);
   assert.equal(initial.isReady, false);
 
-  const withScope = getQuoteProgress({
+  const partial = getQuoteProgress({
     ...DEFAULT_QUOTE_DRAFT,
-    selectedBrands: ['soprano'],
+    selectedBrands: ['roma'],
+    cnpj: '52.400.807/0001-15',
+    companyName: 'Casa de Tintas Litoral',
+    city: 'Praia Grande',
   });
-  assert.equal(withScope.percent, 33);
-  assert.equal(withScope.completedCount, 1);
-  assert.equal(withScope.steps[0].completed, true);
-  assert.equal(withScope.steps[0].detail, 'Soprano');
-
-  const withCompany = getQuoteProgress({
-    ...DEFAULT_QUOTE_DRAFT,
-    selectedBrands: ['soprano'],
-    companyName: 'Depósito Litoral',
-  });
-  assert.equal(withCompany.percent, 67);
-  assert.equal(withCompany.isReady, false);
-  assert.ok(withCompany.statusHeadline.includes('cidade'));
+  assert.equal(partial.completedCount, 4);
+  assert.equal(partial.percent, 80);
+  assert.ok(partial.statusHeadline.includes('WhatsApp e e-mail'));
 
   const ready = getQuoteProgress({
     ...DEFAULT_QUOTE_DRAFT,
-    selectedBrands: ['soprano'],
-    companyName: 'Depósito Litoral',
+    selectedBrands: ['roma'],
+    cnpj: '52.400.807/0001-15',
+    companyName: 'Casa de Tintas Litoral',
     city: 'Praia Grande',
+    whatsapp: '(13) 99804-5406',
+    email: 'compras@tintaslitoral.com.br',
   });
   assert.equal(ready.percent, 100);
-  assert.equal(ready.completedCount, 3);
   assert.equal(ready.isReady, true);
 });
 
 test('buildB2BQuoteMessage and buildWhatsAppUrl format clean structured quote', () => {
   const message = buildB2BQuoteMessage({
     selectedBrands: ['roma', 'soprano'],
-    quoteItems: [{ id: '1', name: 'Fechadura inox externa', quantity: '15 un' }],
+    quoteItems: [{ id: '1', name: 'Fechadura inox externa' }],
     companyName: 'Casa de Tintas Praia Sul',
-    cnpj: '12.345.678/0001-95',
-    contactName: 'Marcos',
+    cnpj: '52.400.807/0001-15',
+    cep: '11724-730',
     city: 'Praia Grande',
-    itemsDescription: '30 rolos antigota 23cm e 15 fechaduras inox',
+    whatsapp: '(13) 99804-5406',
+    email: 'compras@praiasul.com.br',
+    itemsDescription: 'Entrega para próxima semana',
     attendantId: 'carlos',
   });
 
-  assert.ok(message.includes('solicitar um orçamento'));
+  assert.ok(message.includes('solicitar uma cotação'));
   assert.ok(message.includes('Empresa: Casa de Tintas Praia Sul'));
-  assert.ok(message.includes('CNPJ: 12.345.678/0001-95'));
-  assert.ok(message.includes('Contato: Marcos'));
+  assert.ok(message.includes('CNPJ: 52.400.807/0001-15'));
+  assert.ok(message.includes('CEP: 11724-730'));
   assert.ok(message.includes('Cidade: Praia Grande'));
+  assert.ok(message.includes('WhatsApp: (13) 99804-5406'));
+  assert.ok(message.includes('E-mail: compras@praiasul.com.br'));
   assert.ok(message.includes('Fábricas: Roma Pincéis, Soprano'));
-  assert.ok(message.includes('- Fechadura inox externa (Qtd.: 15 un)'));
-  assert.ok(message.includes('30 rolos antigota 23cm'));
+  assert.ok(message.includes('- Fechadura inox externa'));
+  assert.ok(message.includes('Entrega para próxima semana'));
 
   const url = buildWhatsAppUrl('(13) 99804-5406', message);
   assert.ok(url.startsWith('https://api.whatsapp.com/send?phone=13998045406&text='));

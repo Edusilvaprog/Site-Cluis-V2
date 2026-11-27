@@ -3,38 +3,59 @@ import { BRANDS, type BrandId } from '../data/cluisData';
 export interface QuoteLineItem {
   id: string;
   name: string;
-  quantity: string;
 }
 
 export interface B2BQuoteDraft {
   selectedBrands: BrandId[];
-  quoteItems?: QuoteLineItem[];
-  companyName: string;
+  quoteItems: QuoteLineItem[];
   cnpj: string;
-  contactName: string;
+  cep: string;
+  companyName: string;
   city: string;
+  whatsapp: string;
+  email: string;
   itemsDescription: string;
-  attendantId: 'carlos' | 'eduardo';
+  attendantId: 'carlos';
 }
 
 export interface QuoteValidationErrors {
+  scope?: string;
+  cnpj?: string;
   companyName?: string;
   city?: string;
-  scope?: string;
+  whatsapp?: string;
+  email?: string;
 }
 
-export const QUOTE_STORAGE_KEY = 'cluis-b2b-quote-v5';
+const LEGACY_QUOTE_STORAGE_KEYS = [
+  'cluis-b2b-quote-v6',
+  'cluis-b2b-quote-v5',
+  'cluis-b2b-quote-v4',
+];
 
 export const DEFAULT_QUOTE_DRAFT: B2BQuoteDraft = {
   selectedBrands: [],
   quoteItems: [],
-  companyName: '',
   cnpj: '',
-  contactName: '',
+  cep: '',
+  companyName: '',
   city: '',
+  whatsapp: '',
+  email: '',
   itemsDescription: '',
-  attendantId: 'eduardo',
+  attendantId: 'carlos',
 };
+
+export function clearLegacySavedQuoteData(): void {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    for (const key of LEGACY_QUOTE_STORAGE_KEYS) {
+      window.localStorage.removeItem(key);
+    }
+  } catch {
+    // Ignore storage access restrictions
+  }
+}
 
 export function formatCnpjInput(raw: string): string {
   const digits = raw.replace(/\D/g, '').slice(0, 14);
@@ -49,6 +70,60 @@ export function formatCnpjInput(raw: string): string {
   return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`;
 }
 
+export function formatCepInput(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 5) return digits;
+  return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+}
+
+export function formatPhoneInput(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 11);
+  if (digits.length === 0) return '';
+  if (digits.length <= 2) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
+export function isValidEmail(raw: string): boolean {
+  const trimmed = raw.trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(trimmed);
+}
+
+export function normalizeCityName(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+export function matchRegionalCity(
+  rawCity: string,
+  allowedCities: string[],
+): string {
+  const normalizedTarget = normalizeCityName(rawCity);
+  if (!normalizedTarget) return '';
+  const exact = allowedCities.find(
+    (city) => normalizeCityName(city) === normalizedTarget,
+  );
+  return exact ?? 'Outra cidade da região';
+}
+
+export function formatCompanyDisplayName(
+  nomeFantasia: string,
+  razaoSocial: string,
+): string {
+  const preferred = (nomeFantasia || razaoSocial || '').trim();
+  if (!preferred) return '';
+  return preferred
+    .toLowerCase()
+    .replace(/(^|\s)([a-zà-ú])/g, (match) => match.toUpperCase())
+    .replace(/\b(Ltda|Me|Epp|Eireli|S\/a)\b/gi, (abbr) => abbr.toUpperCase());
+}
+
 export function toggleArrayValue<T>(list: T[], value: T): T[] {
   return list.includes(value)
     ? list.filter((item) => item !== value)
@@ -58,28 +133,19 @@ export function toggleArrayValue<T>(list: T[], value: T): T[] {
 export function addQuoteLineItem(
   items: QuoteLineItem[] | undefined,
   name: string,
-  quantity = '',
 ): QuoteLineItem[] {
   const trimmedName = name.trim();
   if (!trimmedName) return items ?? [];
   const list = items ?? [];
-  const trimmedQty = quantity.trim();
-  const existingIdx = list.findIndex(
+  const alreadyExists = list.some(
     (item) => item.name.toLowerCase() === trimmedName.toLowerCase(),
   );
-  if (existingIdx >= 0) {
-    return list.map((item, idx) =>
-      idx === existingIdx
-        ? { ...item, quantity: trimmedQty || item.quantity }
-        : item,
-    );
-  }
+  if (alreadyExists) return list;
   return [
     ...list,
     {
       id: `item-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       name: trimmedName,
-      quantity: trimmedQty,
     },
   ];
 }
@@ -94,14 +160,6 @@ export function removeQuoteLineItem(
 export function validateQuoteRequest(draft: B2BQuoteDraft): QuoteValidationErrors {
   const errors: QuoteValidationErrors = {};
 
-  if (!draft.companyName.trim()) {
-    errors.companyName = 'Informe o nome ou razão social da empresa.';
-  }
-
-  if (!draft.city.trim()) {
-    errors.city = 'Selecione a cidade da empresa.';
-  }
-
   const hasStructuredItems = (draft.quoteItems ?? []).length > 0;
   const hasScope =
     draft.selectedBrands.length > 0 ||
@@ -110,20 +168,48 @@ export function validateQuoteRequest(draft: B2BQuoteDraft): QuoteValidationError
 
   if (!hasScope) {
     errors.scope =
-      'Selecione ao menos uma fábrica ou adicione os itens para orçamento.';
+      'Selecione ao menos uma fábrica ou informe os produtos para cotação.';
+  }
+
+  const cnpjDigits = draft.cnpj.replace(/\D/g, '');
+  if (cnpjDigits.length !== 14) {
+    errors.cnpj = 'Informe um CNPJ válido com 14 números.';
+  }
+
+  if (draft.companyName.trim().length < 2) {
+    errors.companyName = 'Informe o nome ou razão social da empresa.';
+  }
+
+  if (!draft.city.trim()) {
+    errors.city = 'Selecione a cidade da empresa.';
+  }
+
+  const phoneDigits = draft.whatsapp.replace(/\D/g, '');
+  if (phoneDigits.length < 10) {
+    errors.whatsapp = 'Informe um WhatsApp com DDD para retorno.';
+  }
+
+  if (!isValidEmail(draft.email)) {
+    errors.email = 'Informe um e-mail válido para contato.';
   }
 
   return errors;
 }
 
 export function hasValidationErrors(errors: QuoteValidationErrors): boolean {
-  return Boolean(errors.companyName || errors.city || errors.scope);
+  return Boolean(
+    errors.scope ||
+      errors.cnpj ||
+      errors.companyName ||
+      errors.city ||
+      errors.whatsapp ||
+      errors.email,
+  );
 }
 
 export interface QuoteChecklistStep {
-  id: 'escopo' | 'empresa' | 'cidade';
+  id: 'escopo' | 'cnpj' | 'empresa' | 'cidade' | 'contato';
   label: string;
-  detail: string;
   completed: boolean;
   targetFieldId: string;
 }
@@ -138,56 +224,46 @@ export interface QuoteProgressSummary {
 }
 
 export function getQuoteProgress(draft: B2BQuoteDraft): QuoteProgressSummary {
-  const brandsCount = draft.selectedBrands.length;
-  const structuredCount = (draft.quoteItems ?? []).length;
-  const hasNotes = draft.itemsDescription.trim().length > 0;
-  const scopeCompleted = brandsCount > 0 || structuredCount > 0 || hasNotes;
-
-  let scopeDetail = 'Selecione as fábricas ou adicione itens';
-  if (brandsCount > 0) {
-    const names = draft.selectedBrands
-      .map((id) => BRANDS.find((b) => b.id === id)?.shortName)
-      .filter(Boolean)
-      .join(', ');
-    if (structuredCount > 0) {
-      scopeDetail = `${names} · ${structuredCount} ${structuredCount === 1 ? 'item' : 'itens'}`;
-    } else if (hasNotes) {
-      scopeDetail = `${names} + observações`;
-    } else {
-      scopeDetail = names;
-    }
-  } else if (structuredCount > 0) {
-    scopeDetail = `${structuredCount} ${structuredCount === 1 ? 'item adicionado' : 'itens adicionados'}`;
-  } else if (hasNotes) {
-    scopeDetail = 'Itens informados';
-  }
-
+  const scopeCompleted =
+    draft.selectedBrands.length > 0 ||
+    (draft.quoteItems ?? []).length > 0 ||
+    draft.itemsDescription.trim().length > 0;
+  const cnpjCompleted = draft.cnpj.replace(/\D/g, '').length === 14;
   const companyCompleted = draft.companyName.trim().length >= 2;
   const cityCompleted = draft.city.trim().length >= 2;
+  const contactCompleted =
+    draft.whatsapp.replace(/\D/g, '').length >= 10 && isValidEmail(draft.email);
 
   const steps: QuoteChecklistStep[] = [
     {
       id: 'escopo',
-      label: 'Fábricas e itens',
-      detail: scopeDetail,
+      label: 'fábricas ou itens',
       completed: scopeCompleted,
       targetFieldId: 'quote-step-scope',
     },
     {
+      id: 'cnpj',
+      label: 'CNPJ',
+      completed: cnpjCompleted,
+      targetFieldId: 'quote-cnpj',
+    },
+    {
       id: 'empresa',
-      label: 'Empresa',
-      detail: companyCompleted
-        ? draft.companyName.trim()
-        : 'Razão social ou nome fantasia',
+      label: 'empresa',
       completed: companyCompleted,
       targetFieldId: 'quote-company-name',
     },
     {
       id: 'cidade',
-      label: 'Cidade',
-      detail: cityCompleted ? draft.city.trim() : 'Município de atendimento',
+      label: 'cidade',
       completed: cityCompleted,
       targetFieldId: 'quote-city',
+    },
+    {
+      id: 'contato',
+      label: 'WhatsApp e e-mail',
+      completed: contactCompleted,
+      targetFieldId: 'quote-whatsapp',
     },
   ];
 
@@ -198,13 +274,13 @@ export function getQuoteProgress(draft: B2BQuoteDraft): QuoteProgressSummary {
 
   const missingLabels = steps
     .filter((s) => !s.completed)
-    .map((s) => s.label.toLowerCase());
+    .map((s) => s.label);
 
   const statusHeadline = isReady
-    ? 'Tudo pronto para enviar'
+    ? 'Orçamento pronto para envio'
     : missingLabels.length === 1
-      ? `Falta informar: ${missingLabels[0]}`
-      : `Preencha ${missingLabels.length} campos essenciais`;
+      ? `Falta apenas: ${missingLabels[0]}`
+      : `Preenchimento da cotação (${completedCount}/${totalCount})`;
 
   return {
     percent,
@@ -222,18 +298,23 @@ export function buildB2BQuoteMessage(draft: B2BQuoteDraft): string {
     .filter(Boolean) as string[];
 
   const lines: string[] = [
-    'Olá! Gostaria de solicitar um orçamento — Cluis Representações.',
+    'Olá! Gostaria de solicitar uma cotação — Cluis Representações.',
     '',
     `Empresa: ${draft.companyName.trim() || '(não informada)'}`,
+    `CNPJ: ${draft.cnpj.trim() || '(não informado)'}`,
     `Cidade: ${draft.city.trim() || '(não informada)'}`,
   ];
 
-  if (draft.cnpj.trim()) {
-    lines.push(`CNPJ: ${draft.cnpj.trim()}`);
+  if (draft.cep.trim()) {
+    lines.push(`CEP: ${draft.cep.trim()}`);
   }
 
-  if (draft.contactName.trim()) {
-    lines.push(`Contato: ${draft.contactName.trim()}`);
+  if (draft.whatsapp.trim()) {
+    lines.push(`WhatsApp: ${draft.whatsapp.trim()}`);
+  }
+
+  if (draft.email.trim()) {
+    lines.push(`E-mail: ${draft.email.trim()}`);
   }
 
   if (brandNames.length > 0) {
@@ -245,11 +326,7 @@ export function buildB2BQuoteMessage(draft: B2BQuoteDraft): string {
     lines.push('');
     lines.push('Itens solicitados:');
     for (const item of structuredItems) {
-      lines.push(
-        item.quantity
-          ? `- ${item.name} (Qtd.: ${item.quantity})`
-          : `- ${item.name}`,
-      );
+      lines.push(`- ${item.name}`);
     }
   }
 
@@ -264,34 +341,4 @@ export function buildB2BQuoteMessage(draft: B2BQuoteDraft): string {
 export function buildWhatsAppUrl(phoneRaw: string, message: string): string {
   const cleanPhone = phoneRaw.replace(/\D/g, '');
   return `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`;
-}
-
-export function loadPersistedQuoteDraft(): B2BQuoteDraft {
-  try {
-    if (typeof window === 'undefined' || !window.localStorage) {
-      return DEFAULT_QUOTE_DRAFT;
-    }
-    const raw = window.localStorage.getItem(QUOTE_STORAGE_KEY);
-    if (!raw) return DEFAULT_QUOTE_DRAFT;
-    const parsed = JSON.parse(raw) as Partial<B2BQuoteDraft>;
-    return {
-      ...DEFAULT_QUOTE_DRAFT,
-      ...parsed,
-      selectedBrands: Array.isArray(parsed.selectedBrands)
-        ? parsed.selectedBrands
-        : [],
-      quoteItems: Array.isArray(parsed.quoteItems) ? parsed.quoteItems : [],
-    };
-  } catch {
-    return DEFAULT_QUOTE_DRAFT;
-  }
-}
-
-export function savePersistedQuoteDraft(draft: B2BQuoteDraft): void {
-  try {
-    if (typeof window === 'undefined' || !window.localStorage) return;
-    window.localStorage.setItem(QUOTE_STORAGE_KEY, JSON.stringify(draft));
-  } catch {
-    // Ignore storage quota / privacy mode errors
-  }
 }
